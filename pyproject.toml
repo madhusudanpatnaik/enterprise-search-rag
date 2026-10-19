@@ -1,0 +1,61 @@
+[project]
+name = "entsearch"
+version = "0.1.0"
+description = "Enterprise Search: hybrid (BM25 + dense) retrieval, RRF fusion, cross-encoder reranking, and a citation-enforcing answer gate, with retrieval + latency (P95/P99) evaluation."
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "pydantic>=2.7",
+    "numpy>=1.26",
+    "huggingface_hub>=0.24",  # `entsearch download`: fetch the models on the target machine
+]
+
+[project.optional-dependencies]
+# The production models. None is needed for the deterministic offline stack or the tests.
+models = ["sentence-transformers>=3.0"]   # dense encoder + cross-encoder reranker
+generate = ["anthropic>=1.13"]            # the grounded-answer generator (needs ANTHROPIC_API_KEY)
+# MiniCheck (EMNLP 2024), the grounding verifier: `--verify minicheck`. Not on PyPI: installed from
+# GitHub, pinned to a commit so every machine gets the same code.
+minicheck = ["minicheck @ git+https://github.com/Liyan06/MiniCheck.git@b58b9fa69acbd1015ec970fa65dd752413a053d2"]
+dev = ["pytest>=8", "mypy>=1.10", "ruff>=0.5", "anthropic>=1.13"]  # SDK tests use mock HTTP
+
+[project.scripts]
+entsearch = "entsearch.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true  # the minicheck extra installs from GitHub
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/entsearch"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# Word lists (stopwords, negations, abbreviations) read best as one split string.
+ignore = ["SIM905"]
+
+[tool.ruff.lint.per-file-ignores]
+# These hold long fixture document text; a line break would change the data.
+"src/entsearch/datasets/synthetic.py" = ["E501"]
+"tests/test_retrieval_core.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["sentence_transformers", "anthropic", "minicheck.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
